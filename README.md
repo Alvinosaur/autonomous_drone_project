@@ -1,6 +1,8 @@
 # autonomous_drone_project
 URO SRC Research Project with Professor George Kantor
 
+[Full Project Documentation](https://drive.google.com/drive/folders/1nRpnLqMAy6tX2C9C7IgCKpaO1uepiI_S?usp=sharing)
+
 ## Running the Drone Simulator
 1. Start up roscore in a separate tab by running:
 ```
@@ -14,8 +16,14 @@ make px4_sitl_default gazebo
 ```
 A gazebo window should now pop up with the default Iris 3DR+ Drone loaded.
 
-### NOTE: Please make sure you've built and sourced your workspace! Need to use catkin build, not catkin_make.
-3. Run mavros to set up ROS communication with drone simulator, almost like real setup
+#### NOTE: Please make sure you've built and sourced your workspace! Need to use catkin build, not catkin_make.
+
+To source:
+```
+source auton_drone/devel/setup.bash
+```
+
+3. Run mavros to set up ROS communication with drone simulator, almost like real setup:
 ```
 roslaunch mavros px4.launch fcu_url:="udp://:14540@192.168.1.36:14557"
 ```
@@ -56,3 +64,36 @@ You should see the following output over time:
 [ INFO] [1548025851.849003067]: Vehicle armed
 ```
 Now your simulated drone should rise up and hover!
+
+## Visualizing Ultrasonic Sensors
+1. Upload [sensor-publishing code](https://github.com/Alvinosaur/autonomous_drone_project/tree/master/ultrasonic_peripherals) to Arduino, [hook up circuit](https://drive.google.com/open?id=18Ha9dL9g0wC-dsZFRsInmZCISCCwBH5L), and connect with USB
+
+2. Start up roscore in a separate tab by running:
+```
+roscore
+```
+
+3. Find which USB port connected to Arduino:
+```
+ls /dev/tty  # tab-complete to find one of the following listed: ACM0, ACM1, USB0, USB1
+```
+
+4. Set up ROS serial communication with Arduino:
+```
+bash arduino_connect.sh tty<port>  # Port that you found from step 3 (ex: ACM0)
+```
+
+5. Run rviz in another tab to start visualization:
+```
+rosrun rviz rviz
+```
+
+6. Run visualization script: 
+```
+rosrun auton_drone vizsensors
+```
+
+7. Change Fixed Frame(listed under Global Options) from "map" to "main" 
+8. Still selecting Fixed Frame, add new topic listed as "Marker"
+
+You should now be able to visualize relative distances from each of the four sensors!
