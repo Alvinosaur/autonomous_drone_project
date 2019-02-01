@@ -7,23 +7,25 @@
 const float PI = 3.14159;
 const int MAX_DIST = 50;
 // scales of each vector that get updated by the sonar_data_cb callback below
-float vec0 = 1.0, vec = 1.0, vec90 = 1.0, vec180 = 1.0, vec270 = 1.0;
+float vec0 = 1.0, vec90 = 1.0, vec180 = 1.0, vec270 = 1.0;
 
 float scale_distance(float raw_distance) {
-  if (raw_distance > MAX_DIST) return 10;
-  else return raw_distance / 10;
+  if (raw_distance > MAX_DIST) return 15;
+  else return raw_distance / 2;
 }
 
-void sonar_data_cb(auton_drone::UltrasonicArray sensor_data) {
-  vec0 = scale_distance(sensor_data.sonar0.dist);
-  vec90 = scale_distance(sensor_data.sonar90.dist);
-  vec180 = scale_distance(sensor_data.sonar180.dist);
-  vec270 = scale_distance(sensor_data.sonar270.dist);
+// use ConstPtr here to avoid copying entire msg, just getting ptr by pass by
+// reference
+void sonar_data_cb(const auton_drone::UltrasonicArray::ConstPtr& sensor_data) {
+  vec0 = scale_distance(sensor_data->sonar0.dist);
+  vec90 = scale_distance(sensor_data->sonar90.dist);
+  vec180 = scale_distance(sensor_data->sonar180.dist);
+  vec270 = scale_distance(sensor_data->sonar270.dist);
 }
 
 geometry_msgs::Pose* define_poses() {
   geometry_msgs::Pose vector0_pose, vector90_pose, vector180_pose, vector270_pose;
-  vector0_pose.position.x = 0;
+  vector0_pose.position.x = 0.5;
   vector0_pose.position.y = 0;
   vector0_pose.position.z = 0;
   vector0_pose.orientation.x = 1.0;
@@ -32,27 +34,27 @@ geometry_msgs::Pose* define_poses() {
   vector0_pose.orientation.w = 1.0;
 
   vector90_pose.position.x = 0;
-  vector90_pose.position.y = 0;
+  vector90_pose.position.y = 0.5;
   vector90_pose.position.z = 0;
   vector90_pose.orientation.x = 0.0;
-  vector90_pose.orientation.y = 1.0;
-  vector90_pose.orientation.z = 0.0;
+  vector90_pose.orientation.y = 0.0;
+  vector90_pose.orientation.z = 1.0;
   vector90_pose.orientation.w = 1.0;
 
-  vector180_pose.position.x = 0;
+  vector180_pose.position.x = -0.5;
   vector180_pose.position.y = 0;
   vector180_pose.position.z = 0;
-  vector180_pose.orientation.x = -1.0;
+  vector180_pose.orientation.x = 0.0;
   vector180_pose.orientation.y = 0.0;
-  vector180_pose.orientation.z = 0.0;
-  vector180_pose.orientation.w = 1.0;  // quaternion causes angles to scale by 2
+  vector180_pose.orientation.z = 1.0;
+  vector180_pose.orientation.w = 0.0;
 
   vector270_pose.position.x = 0;
-  vector270_pose.position.y = 0;
+  vector270_pose.position.y = -0.5;
   vector270_pose.position.z = 0;
   vector270_pose.orientation.x = 0.0;
-  vector270_pose.orientation.y = -1.0;
-  vector270_pose.orientation.z = 0.0;
+  vector270_pose.orientation.y = 0.0;
+  vector270_pose.orientation.z = -1.0;
   vector270_pose.orientation.w = 1.0;
 
   geometry_msgs::Pose *all_poses = (
@@ -70,17 +72,17 @@ int main( int argc, char** argv )
 {
   ros::init(argc, argv, "sonar_vector_display");
   ros::NodeHandle n;
-  ros::Rate r(0.1);
+  ros::Rate r(3);  // publish at rate of 3Hz
 
   // publishes arrow markers to rviz for visualization
   ros::Publisher pub_vectors = (
-      n.advertise<visualization_msgs::Marker>("visualization_marker", 1));
+      n.advertise<visualization_msgs::Marker>("visualization_marker", 10));
 
   // subscribes to sonar sensor output of Arduino
-  ros::Subscriber sub_sonars = n.subscribe("/sensors/sonar", 1, &sonar_data_cb);
+  ros::Subscriber sub_sonars = n.subscribe("/sensors/sonars", 10, &sonar_data_cb);
 
   // frame for all arrow markers
-  std::string main_frame = "/my_frame";
+  std::string main_frame = "/main";
 
   // constant poses of each vector to be displayed
   geometry_msgs::Pose *all_poses = define_poses();
@@ -89,8 +91,7 @@ int main( int argc, char** argv )
   uint32_t arrow_shape_id = visualization_msgs::Marker::ARROW;
   uint32_t add_shape_id = visualization_msgs::Marker::ADD;
 
-  while (ros::ok())
-  {
+  while (ros::ok()) {
     visualization_msgs::Marker vector0, vector90, vector180, vector270;
     // Set the frame ID and timestamp
     ros::Time cur_time = ros::Time::now();
@@ -136,16 +137,16 @@ int main( int argc, char** argv )
     vector0.scale.y = 0.5;
     vector0.scale.z = 0.5;
 
-    vector90.scale.x = 0.5;
-    vector90.scale.y = vec90;
+    vector90.scale.x = vec90;
+    vector90.scale.y = 0.5;
     vector90.scale.z = 0.5;
 
     vector180.scale.x = vec180;
     vector180.scale.y = 0.5;
     vector180.scale.z = 0.5;
 
-    vector270.scale.x = 0.5;
-    vector270.scale.y = vec270;
+    vector270.scale.x = vec270;
+    vector270.scale.y = 0.5;
     vector270.scale.z = 0.5;
 
     // Set the color -- be sure to set alpha to something non-zero!
@@ -154,18 +155,18 @@ int main( int argc, char** argv )
     vector0.color.b = 0.0f;
     vector0.color.a = 0.5;
 
-    vector90.color.r = 1.0f;
-    vector90.color.g = 0.0f;
+    vector90.color.r = 0.0f;
+    vector90.color.g = 1.0f;
     vector90.color.b = 0.0f;
     vector90.color.a = 0.5;
 
-    vector180.color.r = 1.0f;
+    vector180.color.r = 0.0f;
     vector180.color.g = 0.0f;
-    vector180.color.b = 0.0f;
+    vector180.color.b = 1.0f;
     vector180.color.a = 0.5;
 
-    vector270.color.r = 1.0f;
-    vector270.color.g = 0.0f;
+    vector270.color.r = .50f;
+    vector270.color.g = .50f;
     vector270.color.b = 0.0f;
     vector270.color.a = 0.5;
 
@@ -174,22 +175,12 @@ int main( int argc, char** argv )
     vector180.lifetime = ros::Duration();
     vector270.lifetime = ros::Duration();
 
-    // Publish the marker
-    while (pub_vectors.getNumSubscribers() < 1)
-    {
-      if (!ros::ok())
-      {
-        return 0;
-      }
-      ROS_WARN_ONCE("Please create a subscriber to the marker");
-      sleep(1);
-    }
-
-    pub_vectors.publish(vector0);
-    pub_vectors.publish(vector90);
     pub_vectors.publish(vector180);
     pub_vectors.publish(vector270);
+    pub_vectors.publish(vector0);
+    pub_vectors.publish(vector90);
 
+    ros::spinOnce();
     r.sleep();
   }
 }
