@@ -157,6 +157,10 @@ add_executable(setmode src/test_setmode.cpp)
 target_link_libraries(setmode ${catkin_LIBRARIES})
 add_dependencies(setmode auton_drone_generate_messages_cpp)
 
+add_executable(test_rviz src/test_rviz.cpp)
+target_link_libraries(test_rviz ${catkin_LIBRARIES})
+add_dependencies(test_rviz auton_drone_generate_messages_cpp)
+
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
