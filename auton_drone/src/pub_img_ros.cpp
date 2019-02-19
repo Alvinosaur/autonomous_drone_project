@@ -3,6 +3,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/CameraInfo.h>
+#include <std_msgs/Header.h>
 
 int main(int argc, char** argv)
 {
@@ -21,6 +22,9 @@ int main(int argc, char** argv)
 
   sensor_msgs::CameraInfo cam_info_msg;
   cam_info_msg.header.frame_id = "camera";
+  std_msgs::Header img_header;
+  img_header.frame_id = "tag";
+
   cam_info_msg.height = 480;
   cam_info_msg.width = 640;
   // cam_info_msg.D = {-1.30081323e-01, 4.47666537e-01, -1.78161543e-04,
@@ -41,14 +45,20 @@ int main(int argc, char** argv)
   cam_info_msg.K[8] = 1.0;
 
   ros::Rate loop_rate(5);
+  unsigned int i = 0;
   while (nh.ok()) {
     cap >> frame;
     // Check if grabbed frame is actually full with some content
     if(!frame.empty()) {
+      img_header.seq = i;
       msg = (
-        cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg());
+        cv_bridge::CvImage(img_header, "bgr8", frame).toImageMsg());
+
+      // msg = (
+      //   cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg());
       pub.publish(msg);
       camera_info_pub.publish(cam_info_msg);
+      i++;
       cv::waitKey(1);
     }
 
