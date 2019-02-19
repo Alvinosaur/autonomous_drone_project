@@ -14,7 +14,12 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs  # use for actions
   geometry_msgs
   message_generation  # use for custom messages
+  cv_bridge
+  image_transport
+  sensor_msgs
 )
+
+find_package(OpenCV REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -130,6 +135,7 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -161,6 +167,18 @@ add_executable(vizsensors src/visualize_sonars.cpp)
 target_link_libraries(vizsensors ${catkin_LIBRARIES})
 add_dependencies(vizsensors auton_drone_generate_messages_cpp)
 
+add_executable(pub_img src/pub_img_ros.cpp)
+target_link_libraries(pub_img
+  ${OpenCV_LIBRARIES}
+  ${catkin_LIBRARIES})
+add_dependencies(pub_img auton_drone_generate_messages_cpp)
+
+add_executable(test_cam src/test_cam.cpp)
+target_link_libraries(test_cam
+  ${OpenCV_LIBRARIES}
+  ${catkin_LIBRARIES})
+add_dependencies(test_cam auton_drone_generate_messages_cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -172,6 +190,11 @@ add_dependencies(vizsensors auton_drone_generate_messages_cpp)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+target_link_libraries(test_cam
+  ${OpenCV_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
