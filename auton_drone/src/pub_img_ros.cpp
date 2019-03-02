@@ -27,6 +27,7 @@ int main(int argc, char** argv)
 
   cam_info_msg.height = 480;
   cam_info_msg.width = 640;
+  // TODO: use getopt to pass in json file containing these intrinsics
   // cam_info_msg.D = {-1.30081323e-01, 4.47666537e-01, -1.78161543e-04,
   //                   -1.15875402e-03, -4.83188066e-01};
   // cam_info_msg.K = {521.61643826, 0.0, 329.0603408,
@@ -45,12 +46,13 @@ int main(int argc, char** argv)
   cam_info_msg.K[8] = 1.0;
 
   ros::Rate loop_rate(5);
-  unsigned int i = 0;
   while (nh.ok()) {
+    ros::Time cur_time = ros::Time::now();
     cap >> frame;
+    img_header.stamp = cur_time;
+    cam_info_msg.header.stamp = cur_time;
     // Check if grabbed frame is actually full with some content
     if(!frame.empty()) {
-      img_header.seq = i;
       msg = (
         cv_bridge::CvImage(img_header, "bgr8", frame).toImageMsg());
 
@@ -58,7 +60,6 @@ int main(int argc, char** argv)
       //   cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg());
       pub.publish(msg);
       camera_info_pub.publish(cam_info_msg);
-      i++;
       cv::waitKey(1);
     }
 
