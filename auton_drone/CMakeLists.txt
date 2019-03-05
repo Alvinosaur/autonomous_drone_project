@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  tf
   actionlib_msgs  # use for actions
   geometry_msgs
   message_generation  # use for custom messages
@@ -166,6 +167,10 @@ add_dependencies(setmode auton_drone_generate_messages_cpp)
 add_executable(vizsensors src/visualize_sonars.cpp)
 target_link_libraries(vizsensors ${catkin_LIBRARIES})
 add_dependencies(vizsensors auton_drone_generate_messages_cpp)
+
+add_executable(plot_drone src/plot_drone.cpp)
+target_link_libraries(plot_drone ${catkin_LIBRARIES})
+add_dependencies(plot_drone auton_drone_generate_messages_cpp)
 
 add_executable(pub_img src/pub_img_ros.cpp)
 target_link_libraries(pub_img

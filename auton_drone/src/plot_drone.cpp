@@ -2,7 +2,7 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 
-tf::Transform get_cam_pose(const tf::TransformListener &tl, tf::Transform &tag0, tf::Transform &tag1){
+tf::Vector3 get_cam_pose(const tf::TransformListener &tl, tf::Transform &tag0, tf::Transform &tag1){
   tf::StampedTransform tag0_cam;
   tf::StampedTransform tag1_cam;
   tf::Transform cam_tag0;
@@ -19,18 +19,11 @@ tf::Transform get_cam_pose(const tf::TransformListener &tl, tf::Transform &tag0,
     cam_tag0 = tag0_cam.inverse();
     cam_tag1 = tag1_cam.inverse();
     // cam_tag0_vec = cam_tag0*cam_tag0.getOrigin();
-    return cam_tag0;
+    // return cam_tag0;
     // tl.lookupTransform("camera", "tag_1", ros::Time(0), tag1_cam);
 
-    // tf::Vector3 tag0_cam_vec = tag0_cam.getOrigin();
-    // tf::Vector3 tag0_origin = tag0.getOrigin();
-    // tf::Vector3 tag1_cam_vec = tag1_cam.getOrigin();
-
-    // double fused_x = (tag0_origin.getX() + tag0_cam.x());
-    // double fused_y = (tag0_origin.getY() + tag0_cam.y());
-    // double fused_z = (tag0_origin.getZ() + tag0_cam.z());
-    // return tf::Vector3(fused_x, fused_y, fused_z);
-
+    return (tag0.getOrigin() + cam_tag0.getOrigin() +
+            tag1.getOrigin() + cam_tag1.getOrigin())/2;
 }
 
 int main(int argc, char** argv) {
@@ -57,12 +50,12 @@ int main(int argc, char** argv) {
 
   while (nh.ok()) {
     ros::Time cur_time = ros::Time::now();
-    // tf::Vector3 cam_pose = get_cam_pose(tag_listener, tag0_pose_g, tag1_pose_g);
-    // cam_pose_g.setOrigin(cam_pose);
-    cam_pose_g = get_cam_pose(tag_listener, tag0_pose_g, tag1_pose_g);
+    tf::Vector3 cam_pose = get_cam_pose(tag_listener, tag0_pose_g, tag1_pose_g);
+    cam_pose_g.setOrigin(cam_pose);
+    // cam_pose_g = get_cam_pose(tag_listener, tag0_pose_g, tag1_pose_g);
 
     transform_br.sendTransform(
-      tf::StampedTransform(cam_pose_g, cur_time, "tag_0_g", "camera"));
+      tf::StampedTransform(cam_pose_g, cur_time, "world", "camera"));
     transform_br.sendTransform(
       tf::StampedTransform(tag0_pose_g, cur_time, "world", "tag_0_g"));
     transform_br.sendTransform(
