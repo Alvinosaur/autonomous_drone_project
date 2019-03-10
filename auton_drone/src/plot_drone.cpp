@@ -4,13 +4,13 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 
-#define TIME_THRESH 3  // 3 seconds max duration for considering transform
+#define TIME_THRESH 2  // 2 seconds max duration for considering transform
 
 class TagDetection {
   public:
-    int success;  // status flag
-    char cam_id[20]= "camera_raw";
-    char tag_id[20];
+    int *success;  // status flag
+    std::string cam_id = "camera_raw";
+    std::string tag_id;
     tf::StampedTransform transform;  // transform from tag to camera if detected
     tf::Transform global_pose;  // 3D vector from global origin to tag
 
@@ -23,17 +23,21 @@ class TagDetection {
      */
       try {
         tl.lookupTransform(cam_id, tag_id, ros::Time(0), transform);
-        return (abs((ros::Time::now() - transform.stamp_).toSec())
+        *success = (abs((ros::Time::now() - transform.stamp_).toSec())
                     <= TIME_THRESH);
       } catch(tf::TransformException ex) {
-        return 0;
+        *success = 0;
       }
+      ROS_INFO("%d", *success);
+      return *success;
     }
 };
 
-TagDetection::TagDetection(const char tag_id[20], float x, float y, float z,
+TagDetection::TagDetection(const char *tag, float x, float y, float z,
                            tf::Quaternion rot) {
-  tag_id = tag_id;
+  success = (int*)malloc(sizeof(int));
+  *success = 0;  // initialize to false
+  tag_id.assign(tag, strlen(tag));
   global_pose.setOrigin(tf::Vector3(x, y, z));
   global_pose.setRotation(rot);
 }
@@ -60,7 +64,8 @@ std::vector<TagDetection> define_tags(){
 }
 
 tf::Vector3 get_cam_pose(const tf::TransformListener &tl,
-                         std::vector<TagDetection> tag_poses){
+                         std::vector<TagDetection> tag_poses,
+                         int* success){
   size_t i;
   unsigned int num_detected_tags = 0;
   tf::Vector3 cam_position;  // automatically initialized to all 0's
@@ -74,6 +79,7 @@ tf::Vector3 get_cam_pose(const tf::TransformListener &tl,
                        tag_poses[i].transform.inverse().getOrigin());
     }
   }
+  *success = (num_detected_tags > 0);
   // attempt to take average
   return (num_detected_tags != 0) ? cam_position/num_detected_tags : cam_position;
 }
@@ -84,6 +90,8 @@ int main(int argc, char** argv) {
   // ros::Subscriber tf_subscriber = nh.subscribe("/tf", 10, &tf_cb);
   ros::Rate rate(10);
   size_t i;
+  int success = 0;
+  std::string global_tag_suffix("_g");
 
   tf::TransformBroadcaster transform_br;
   tf::TransformListener tag_listener;
@@ -98,19 +106,24 @@ int main(int argc, char** argv) {
 
   while (nh.ok()) {
     ros::Time cur_time = ros::Time::now();
-    tf::Vector3 cam_pose = get_cam_pose(tag_listener, tag_poses);
-    cam_pose_g.setOrigin(cam_pose);
+    tf::Vector3 cam_pose = get_cam_pose(tag_listener, tag_poses, &success);
     // cam_pose_g = get_cam_pose(tag_listener, tag0_pose_g, tag1_pose_g);
 
-    transform_br.sendTransform(
-      tf::StampedTransform(cam_pose_g, cur_time, "world", "camera"));
+    if (success) {
+    // only set new camera pose if tags were detected
+      cam_pose_g.setOrigin(cam_pose);
+      transform_br.sendTransform(
+        tf::StampedTransform(cam_pose_g, cur_time, "world", "camera"));
+    }
 
     // constant tag position in world
     for (i = 0; i < tag_poses.size(); i++) {
-      if (tag_poses[i].success) {
+
+      // ROS_INFO("%ld: %d", i, tag_poses[i].success);
+      if (*(tag_poses[i].success)) {
         transform_br.sendTransform(
           tf::StampedTransform(tag_poses[i].global_pose, cur_time, "world",
-                               tag_poses[i].tag_id));
+                               tag_poses[i].tag_id + global_tag_suffix));
       }
     }
 
