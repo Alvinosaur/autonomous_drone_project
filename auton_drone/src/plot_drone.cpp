@@ -4,11 +4,11 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
 
-#define TIME_THRESH 2  // 2 seconds max duration for considering transform
+#define TIME_THRESH 0.5  // 0.5 seconds max duration for considering transform
 
 class TagDetection {
   public:
-    int *success;  // status flag
+    int detected;  // status flag
     std::string cam_id = "camera_raw";
     std::string tag_id;
     tf::StampedTransform transform;  // transform from tag to camera if detected
@@ -23,32 +23,28 @@ class TagDetection {
      */
       try {
         tl.lookupTransform(cam_id, tag_id, ros::Time(0), transform);
-        *success = (abs((ros::Time::now() - transform.stamp_).toSec())
+        detected = (abs((ros::Time::now() - transform.stamp_).toSec())
                     <= TIME_THRESH);
       } catch(tf::TransformException ex) {
-        *success = 0;
+        detected = 0;
       }
-      ROS_INFO("%d", *success);
-      return *success;
+      return detected;
     }
 };
 
 TagDetection::TagDetection(const char *tag, float x, float y, float z,
                            tf::Quaternion rot) {
-  success = (int*)malloc(sizeof(int));
-  *success = 0;  // initialize to false
+  detected = 0;  // initialize to false
   tag_id.assign(tag, strlen(tag));
   global_pose.setOrigin(tf::Vector3(x, y, z));
   global_pose.setRotation(rot);
 }
 
 
-std::vector<TagDetection> define_tags(){
+void define_tags(std::vector<TagDetection> &tag_init_data){
 /* Creates vector of all possible detected tags, each represented with the
  * TagDetection class.
  */
-  std::vector<TagDetection> tag_init_data;
-
   tf::Quaternion zero_rot;
   zero_rot.setRPY(0, 0, 0);
 
@@ -59,13 +55,11 @@ std::vector<TagDetection> define_tags(){
   tag_init_data.push_back(tag0);
   tag_init_data.push_back(tag1);
   tag_init_data.push_back(tag2);
-
-  return tag_init_data;
 }
 
 tf::Vector3 get_cam_pose(const tf::TransformListener &tl,
-                         std::vector<TagDetection> tag_poses,
-                         int* success){
+                         std::vector<TagDetection> &tag_poses,
+                         int &found_tag){
   size_t i;
   unsigned int num_detected_tags = 0;
   tf::Vector3 cam_position;  // automatically initialized to all 0's
@@ -79,7 +73,7 @@ tf::Vector3 get_cam_pose(const tf::TransformListener &tl,
                        tag_poses[i].transform.inverse().getOrigin());
     }
   }
-  *success = (num_detected_tags > 0);
+  found_tag = (num_detected_tags > 0);
   // attempt to take average
   return (num_detected_tags != 0) ? cam_position/num_detected_tags : cam_position;
 }
@@ -89,27 +83,28 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh;
   // ros::Subscriber tf_subscriber = nh.subscribe("/tf", 10, &tf_cb);
   ros::Rate rate(10);
-  size_t i;
-  int success = 0;
+
   std::string global_tag_suffix("_g");
+  std::vector<TagDetection> tag_poses;
 
   tf::TransformBroadcaster transform_br;
   tf::TransformListener tag_listener;
-
-  std::vector<TagDetection> tag_poses = define_tags();
-
   tf::Transform cam_pose_g;
-
   tf::Quaternion zero_rot;
   zero_rot.setRPY(0, 0, 0);
+
+  size_t i = 0;
+  int found_tag = 0;
+
+  define_tags(tag_poses);
   cam_pose_g.setRotation(zero_rot);
 
   while (nh.ok()) {
     ros::Time cur_time = ros::Time::now();
-    tf::Vector3 cam_pose = get_cam_pose(tag_listener, tag_poses, &success);
+    tf::Vector3 cam_pose = get_cam_pose(tag_listener, tag_poses, found_tag);
     // cam_pose_g = get_cam_pose(tag_listener, tag0_pose_g, tag1_pose_g);
 
-    if (success) {
+    if (found_tag) {
     // only set new camera pose if tags were detected
       cam_pose_g.setOrigin(cam_pose);
       transform_br.sendTransform(
@@ -120,7 +115,7 @@ int main(int argc, char** argv) {
     for (i = 0; i < tag_poses.size(); i++) {
 
       // ROS_INFO("%ld: %d", i, tag_poses[i].success);
-      if (*(tag_poses[i].success)) {
+      if (tag_poses[i].detected) {
         transform_br.sendTransform(
           tf::StampedTransform(tag_poses[i].global_pose, cur_time, "world",
                                tag_poses[i].tag_id + global_tag_suffix));
