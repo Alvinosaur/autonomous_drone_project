@@ -48,13 +48,15 @@ void define_tags(std::vector<TagDetection> &tag_init_data){
   tf::Quaternion zero_rot;
   zero_rot.setRPY(0, 0, 0);
 
-  TagDetection tag0("tag_0", 0, 0, 0, zero_rot);
-  TagDetection tag1("tag_1", -0.1, 0, 0, zero_rot);
-  TagDetection tag2("tag_2", 0, 0.1, 0, zero_rot);
+  TagDetection tag0("tag_0", .0635, .1397, 0, zero_rot);
+  TagDetection tag1("tag_1", .2159, .1397, 0, zero_rot);
+  TagDetection tag7("tag_7", .0635, .0635, 0, zero_rot);
+  TagDetection tag6("tag_6", .2159, .0635, 0, zero_rot);
 
   tag_init_data.push_back(tag0);
   tag_init_data.push_back(tag1);
-  tag_init_data.push_back(tag2);
+  tag_init_data.push_back(tag6);
+  tag_init_data.push_back(tag7);
 }
 
 tf::Vector3 get_cam_pose(const tf::TransformListener &tl,

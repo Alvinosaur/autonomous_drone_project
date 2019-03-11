@@ -1,0 +1,19 @@
+<launch>
+  <!-- Need to uncomment the params and args to use -->
+  <arg name="pub_img_namespace" default="pub_img" />
+  <arg name="plot_drone_namespace" default="plot_drone" />
+  <arg name="rviz_namespace" default="rviz" />
+
+  <!-- Set parameters -->
+  <!-- rosparam command="load" file="$(find auton_drone)/config/settings.yaml"
+  ns="$(arg cam_params)" / -->
+
+  <node pkg="auton_drone" type="pub_img" name="$(arg pub_img_namespace)">
+    <!-- remap from="camera_info" to="$(arg camera_name)/camera_info" / -->
+    <!-- param name="camera_frame" type="str" value="$(arg camera_frame)" / -->
+  </node>
+
+  <node pkg="auton_drone" type="plot_drone" name="$(arg plot_drone_namespace)"/>
+
+  <node pkg="rviz" type="rviz" name="$(arg rviz_namespace)"/>
+</launch>
