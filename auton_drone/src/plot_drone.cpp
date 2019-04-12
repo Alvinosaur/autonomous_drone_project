@@ -3,42 +3,9 @@
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
+#include "auton_drone/TagDetection.h"
 
 #define TIME_THRESH 0.5  // 0.5 seconds max duration for considering transform
-
-class TagDetection {
-  public:
-    int detected;  // status flag
-    std::string cam_id = "camera_raw";
-    std::string tag_id;
-    tf::StampedTransform transform;  // transform from tag to camera if detected
-    tf::Transform global_pose;  // 3D vector from global origin to tag
-
-    TagDetection(const char*, float, float, float, tf::Quaternion);
-
-    int get_transform(const tf::TransformListener &tl){
-    /* Gets most recent transform and sets status flag for whether this
-     * transform is recent enough to be used. Also sets status to false if no
-     * transform is present.
-     */
-      try {
-        tl.lookupTransform(cam_id, tag_id, ros::Time(0), transform);
-        detected = (abs((ros::Time::now() - transform.stamp_).toSec())
-                    <= TIME_THRESH);
-      } catch(tf::TransformException ex) {
-        detected = 0;
-      }
-      return detected;
-    }
-};
-
-TagDetection::TagDetection(const char *tag, float x, float y, float z,
-                           tf::Quaternion rot) {
-  detected = 0;  // initialize to false
-  tag_id.assign(tag, strlen(tag));
-  global_pose.setOrigin(tf::Vector3(x, y, z));
-  global_pose.setRotation(rot);
-}
 
 
 void define_tags(std::vector<TagDetection> &tag_init_data){

@@ -134,7 +134,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
+  include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -143,6 +143,7 @@ include_directories(
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/basics.cpp
 # )
+# add_library(TagDetection.h /src/${PROJECT_NAME}/TagDetection.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -168,7 +169,8 @@ add_executable(vizsensors src/visualize_sonars.cpp)
 target_link_libraries(vizsensors ${catkin_LIBRARIES})
 add_dependencies(vizsensors auton_drone_generate_messages_cpp)
 
-add_executable(plot_drone src/plot_drone.cpp)
+add_executable(plot_drone src/plot_drone.cpp src/TagDetection.cpp
+  include/${PROJECT_NAME}/TagDetection.h)
 target_link_libraries(plot_drone ${catkin_LIBRARIES})
 add_dependencies(plot_drone auton_drone_generate_messages_cpp)
 
