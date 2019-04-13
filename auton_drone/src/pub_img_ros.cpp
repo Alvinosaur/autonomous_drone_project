@@ -14,7 +14,13 @@ int main(int argc, char** argv)
   ros::Publisher camera_info_pub = (
     nh.advertise<sensor_msgs::CameraInfo>("/camera_rect/camera_info", 10));
 
-  cv::VideoCapture cap(1);  // video source 1 for external usb camera
+  if (argc == 1) {
+    std::cout << "Need to specify camera index! (ie: 0 or 1)" << std::endl;
+    exit(-1);
+  }
+
+  int cam_index = (int)(argv[1][0] - '0');
+  cv::VideoCapture cap(cam_index);  // video source 1 for external usb camera
   // Check if video device can be opened with the given index
   if(!cap.isOpened()) return -1;
   cv::Mat frame;
