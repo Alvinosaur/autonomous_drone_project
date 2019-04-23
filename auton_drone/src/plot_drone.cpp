@@ -3,12 +3,16 @@
 #include <ros/ros.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/Point.h>
 
 #include "auton_drone/TagDetection.h"
 
 #define TIME_THRESH 0.5  // 0.5 seconds max duration for considering transform
+
+void print_transform(tf::Transform trans);
+
 
 /* Creates vector of all possible detected tags, each represented with the
  * TagDetection class.
@@ -22,6 +26,17 @@ void define_tags(std::vector<TagDetection> &tag_init_data){
   TagDetection tag7("tag_7", .0635, .0635, 0, zero_rot);
   TagDetection tag6("tag_6", .2159, .0635, 0, zero_rot);
 
+  /*
+  Eigen::Affine3d tag0_trans, tag1_trans, tag6_trans, tag7_trans;
+  tf::transformTFToEigen(tag0.transform, tag0_trans);
+  tf::transformTFToEigen(tag1.transform, tag1_trans);
+  tf::transformTFToEigen(tag6.transform, tag6_trans);
+  tf::transformTFToEigen(tag7.transform, tag7_trans);
+  std::cout << tag0_trans << std::endl;
+  // Eigen::MatrixXf
+  // Eigen::MatrixXf C(
+
+  */
   tag_init_data.push_back(tag0);
   tag_init_data.push_back(tag1);
   tag_init_data.push_back(tag6);
@@ -43,15 +58,35 @@ tf::Vector3 take_avg(const tf::TransformListener &tl,
     if (tag_poses[i].get_transform(tl)) {
       num_detected_tags++;
       // r_g_cam = r_g_tag + r_cam_tag^-1, assuming no rotation
-      cam_position += (tag_poses[i].global_pose.getOrigin() +
-                       tag_poses[i].transform.inverse().getOrigin());
+      cam_position += (tag_poses[i].global_pose *
+                       tag_poses[i].transform.inverse()).getOrigin();
     }
   }
+
+  Eigen::Affine3d trans;
+  Eigen::Affine3d pose;
+  Eigen::Affine3d meas;
+  tf::transformTFToEigen(tag_poses[0].global_pose *
+                       tag_poses[0].transform.inverse(), pose);
+  tf::transformTFToEigen(tag_poses[0].transform, meas);
+  tf::transformTFToEigen(tag_poses[0].global_pose, trans);
+  std::cout << (pose.inverse() * trans).matrix() << std::endl;
+  std::cout << "Orig:" << meas.matrix() << std::endl;
+
   found_tag = (num_detected_tags > 0);
   // attempt to take average
   return (num_detected_tags != 0) ? cam_position/num_detected_tags : cam_position;
 }
 
+void print_transform(tf::Transform trans) {
+  tf::Quaternion q = trans.getRotation();
+  tf::Vector3 axis = q.getAxis();
+  tf::Vector3 origin = trans.getOrigin();
+  float angle = q.getAngle();
+  ROS_INFO("x, y, z, xr, yr, zr, w: %f, %f, %f, %f, %f, %f, %f",
+           origin.getX(), origin.getY(), origin.getZ(),
+           axis.getX(), axis.getY(), axis.getZ(), angle);
+}
 
 void init_marker_list(visualization_msgs::Marker &points) {
   points.header.frame_id = "world";
