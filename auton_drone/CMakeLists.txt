@@ -4,6 +4,8 @@ project(auton_drone)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -18,9 +20,14 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_transport
   sensor_msgs
+  tf_conversions
 )
 
 find_package(OpenCV REQUIRED)
+link_directories(/usr/local/lib)
+# find_package(EIGEN3 REQUIRED)
+# find_package(PkgConfig)
+# pkg_search_module(Eigen3 REQUIRED eigen3)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -59,7 +66,7 @@ find_package(OpenCV REQUIRED)
 add_message_files(
     FILES
     Ultrasonic.msg
-    UltrasonicArray.msg
+    # UltrasonicArray.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -121,6 +128,7 @@ catkin_package(
 #  LIBRARIES basics
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
+    INCLUDE_DIRS include
     CATKIN_DEPENDS
     message_runtime
     actionlib_msgs
@@ -137,6 +145,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -170,6 +179,7 @@ target_link_libraries(vizsensors ${catkin_LIBRARIES})
 add_dependencies(vizsensors auton_drone_generate_messages_cpp)
 
 add_executable(plot_drone src/plot_drone.cpp src/TagDetection.cpp
+  src/PoseEstimation.cpp include/${PROJECT_NAME}/PoseEstimation.h
   include/${PROJECT_NAME}/TagDetection.h)
 target_link_libraries(plot_drone ${catkin_LIBRARIES})
 add_dependencies(plot_drone auton_drone_generate_messages_cpp)
