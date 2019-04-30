@@ -9,8 +9,8 @@ import rospy
 import tf
 import geometry_msgs.msg
 
-STATE_DIM = 7  # Dimension of state vector, [x, y, z, vx, vy, vz]
-MEAS_DIM = 3
+STATE_DIM = 6  # Dimension of state vector, [x, y, z, vx, vy, vz]
+MEAS_DIM = 6
 
 class TagDetection():
     def __init__(self, name, x, y, z):
@@ -31,14 +31,21 @@ tag6 = TagDetection("tag_6", .2159, .0635, 0)
 tag_list = [('tag_0', tag0), ('tag_1', tag1), ('tag_6', tag6), ('tag_7', tag7)]
 
 
-def format_measurement(trans):
-    return array([trans[0], trans[1], trans[2])
+def pose_from_meas(trans, rot, tag):
+    trans_mat = tf.transformations.translation_matrix(trans)
+    rot_mat = tf.transformations.quaternion_matrix(rot)
+    mat = inv(dot(trans_mat, rot_mat))  # camera to tag
 
-def generate_H(tag):
-    H = array([[1, 0, 0, 0, 0, 0, -1*tag.x],
-               [0, 1, 0, 0, 0, 0, -1*tag.y],
-               [0, 0, 1, 0, 0, 0, -1*tag.z]])
-    return H
+    trans_global_tag = tf.transformations.translation_matrix(
+                        [tag.x, tag.y, tag.z])
+
+    global_cam_pose = trans_global_tag.dot(mat)
+    init_cam_pos = [global_cam_pose[0][3], global_cam_pose[1][3],
+                    global_cam_pose[2][3]]
+
+    X = append(init_cam_pos, [0, 0, 0])  # [x, y, z, vx, vy, vz]
+    return X
+
 
 def generate_A(dt):
     A = identity(STATE_DIM)
@@ -63,13 +70,7 @@ def init_state(listener, X):
             try:
                 (trans,rot) = listener.lookupTransform(cam_frame_id,
                             tag_name, rospy.Time(0))
-                trans_mat = array([[1, 0, 0, tag.x],
-                                   [0, 1, 0, tag.y],
-                                   [0, 0, 1, tag.z]])
-                trans.append(1)
-                trans = array(trans)
-                init_pos = trans_mat.dot(trans)
-                X = append(init_pos, [0, 0, 0, 1]])  # [x, y, z, vx, vy, vz, 1]
+                X = pose_from_meas(trans, rot, tag)
                 return X  # return first estimate we find for initial estimate
             except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
@@ -77,9 +78,19 @@ def init_state(listener, X):
         time.sleep(1)
 
 
+def generate_H():
+    # Preserve position, but measurement should not have any velocity est
+    H = identity(STATE_DIM)
+    H[3][3] = 0
+    H[4][4] = 0
+    H[5][5] = 0
+    return H
+
 
 def estimate_state(listener, X, P, V, W, dt):
     A = generate_A(dt)
+    H = generate_H()
+
     assert(A.shape == P.shape)
 
     X, P = predict(X, P, A, V)
@@ -87,8 +98,7 @@ def estimate_state(listener, X, P, V, W, dt):
         try:
             (trans, rot) = listener.lookupTransform(cam_frame_id,
                             tag_name, rospy.Time(0))
-            Z = format_measurement(trans)
-            H = generate_H(tag)
+            Z = pose_from_meas(trans, rot, tag)
             X, P = update(X, P, Z, H, W)
 
         except (tf.LookupException, tf.ConnectivityException,
@@ -130,13 +140,13 @@ def main():
     # State and Covariance
     P = identity(STATE_DIM)
     # [x, y, z, vx, vy, vz, xr, yr, zr, w, 1]
-    X = array([0 for i in range(STATE_DIM)])  
+    X = array([0 for i in range(STATE_DIM)])
     zero_rot = [0, 0, 0, 1]
 
     # Error Covariances
     # Assume nothing about covariance matrix
-    V, W = identity(STATE_DIM), identity(MEAS_DIM)  
-    
+    V, W = identity(STATE_DIM), identity(MEAS_DIM)
+
 
     rate = rospy.Rate(10.0)
     prev_time = time.time()
