@@ -107,19 +107,19 @@ def estimate_state(listener, X, P, V, W, dt):
 
 
 def update(X, P, Z, H, W):
-    S = H.dot(P.dot(transpose(H))) + W
-    K = P.dot(transpose(H).dot(inv(S)))
+    S = H.dot(P.dot(H.T)) + W
+    K = P.dot(H.T).dot(inv(S))
     innov = Z - H.dot(X)
 
     X = X + K.dot(innov)
-    P = P + K.dot(H.dot(P))
+    P = P - K.dot(H.dot(P))
     # print(K)
     return X, P
 
 
 def predict(X, P, A, V):
     X = A.dot(X)
-    P = A.dot(P.dot(transpose(A))) + V
+    P = A.dot(P.dot(A.T)) + V
     return X, P
 
 
