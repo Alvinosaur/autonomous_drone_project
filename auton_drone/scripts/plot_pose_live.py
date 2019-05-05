@@ -53,6 +53,11 @@ class PlotData():
               'tag6': [],
               'tag7': [],
               'filter': []}
+  def add_data(self, name, X):
+    self.x[name].append(X[0])
+    self.y[name].append(X[1])
+    self.z[name].append(X[2])
+
 
 def init_plot_data():
   return PlotData()
