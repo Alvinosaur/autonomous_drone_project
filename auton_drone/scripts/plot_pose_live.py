@@ -2,12 +2,6 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import style
 
-# {'tag0': PlotData,
-#  'tag1': PlotData,
-#  'tag6': PlotData,
-#  'tag7': PlotData,
-#  'filter': PlotData}
-
 # Plots all lines on same graph
 # data_sources: dict mapping name_id to tuple of xs and ys values
 def animate(i, time_axis, data_sources, plot):
@@ -29,9 +23,9 @@ def animate(i, time_axis, data_sources, plot):
 
 def init_plots():
   fig = plt.figure()
-  x_pos = fig.add_subplot(2, 3, 0)
-  y_pos = fig.add_subplot(2, 3, 1)
-  z_pos = fig.add_subplot(2, 3, 2)
+  x_pos = fig.add_subplot(1, 3, 0)
+  y_pos = fig.add_subplot(1, 3, 1)
+  z_pos = fig.add_subplot(1, 3, 2)
   # vx = fig.add_subplot(2, 3, 3)
   # vy = fig.add_subplot(2, 3, 4)
   # vz = fig.add_subplot(2, 3, 5)

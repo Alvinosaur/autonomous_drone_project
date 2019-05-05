@@ -67,8 +67,12 @@ def generate_A(dt):
     #            [0, 0, 0, 0, 0, 0,  1]])
 
 
-def init_state(listener, X, plot_data):
-    while(True):
+def init_state(listener, X, plot_data, time_axis):
+    # List of tags to be found
+    tags_left = [tag_name for (tag_name, tag) in tag_list]
+
+    # Loop until we've detected each tag at least once to have correct # values
+    while(len(tags_left) != 0):
         print('Searching for tag...')
         time.sleep(1)
         for (tag_name, tag) in tag_list:
@@ -76,12 +80,17 @@ def init_state(listener, X, plot_data):
                 (trans,rot) = listener.lookupTransform(cam_frame_id,
                             tag_name, rospy.Time(0))
                 X = pose_from_meas(trans, rot, tag)
-                plot_data[tag_name].append()
-                return X  # return first estimate we find for initial estimate
+                if (tag_name not in tags_left): 
+                    tags_left.remove(tag_name)
+                    plot_data.x[tag_name].append(X[0])
+                    plot_data.y[tag_name].append(X[1])
+                    plot_data.z[tag_name].append(X[2])
+
             except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
                 continue
-        time.sleep(1)
+    time_axis.append(time.time())
+    return X
 
 
 def generate_H():
@@ -93,11 +102,9 @@ def generate_H():
     return H
 
 
-def estimate_state(listener, X, P, V, W, dt, plot_data):
+def estimate_state(listener, X, P, V, W, dt, plot_data, time_axis):
     A = generate_A(dt)
     H = generate_H()
-
-    assert(A.shape == P.shape)
 
     X, P = predict(X, P, A, V)
     for (tag_name, tag) in tag_list:
@@ -109,7 +116,11 @@ def estimate_state(listener, X, P, V, W, dt, plot_data):
 
         except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
+            plot_data.x[tag_name].append(X[-1])
+            plot_data.y[tag_name].append(X[-1])
+            plot_data.z[tag_name].append(X[-1])
             continue
+    time_axis.append(time.time())
     return X, P
 
 
@@ -172,13 +183,18 @@ def main():
     init = True
     while not rospy.is_shutdown():
         if init:
-            X = init_state(listener, X, plot_data)
+            X = init_state(listener, X, plot_data, time_axis)
             init = False
         else:
             X, P = estimate_state(listener, X, P, V, W, 
-                                time.time() - prev_time, plot_data)
+                                time.time() - prev_time, plot_data, time_axis)
             trans= get_transform(X)
-            br.sendTransform(trans, zero_rot, rospy.Time.now(), "camera", "world")
+            br.sendTransform(trans, zero_rot, rospy.Time.now(), 
+                            "camera", "world")
+        
+        plot_data.x['filter'].append(X[0])
+        plot_data.y['filter'].append(X[1])
+        plot_data.z['filter'].append(X[2])
 
         prev_time = time.time()
 
