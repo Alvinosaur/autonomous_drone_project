@@ -4,8 +4,6 @@ from numpy import *
 from numpy.linalg import inv
 import time
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-
 import plot_pose_live as plotter
 
 
@@ -83,9 +81,7 @@ def init_state(listener, X, plot_data, time_axis):
                     X = pose_from_meas(trans, rot, tag)
 
                     tags_left.remove(tag_name)
-                    plot_data.x[tag_name].append(X[0])
-                    plot_data.y[tag_name].append(X[1])
-                    plot_data.z[tag_name].append(X[2])
+                    plot_data.add_data(tag_name, X)
 
                 except (tf.LookupException, tf.ConnectivityException,
                         tf.ExtrapolationException):
@@ -118,9 +114,7 @@ def estimate_state(listener, X, P, V, W, dt, plot_data, time_axis):
 
         except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
-            plot_data.x[tag_name].append(X[-1])
-            plot_data.y[tag_name].append(X[-1])
-            plot_data.z[tag_name].append(X[-1])
+            plot_data.add_data(tag_name, X)
             continue
     time_axis.append(time.time())
     return X, P
@@ -170,14 +164,6 @@ def main():
     time_axis = []
     fig, position_plots, velocity_plots = plotter.init_plots()
     plot_data = plotter.init_plot_data()
-    animation.FuncAnimation(fig, plotter.animate, fargs=(time_axis, plot_data.x,
-                                position_plots[0]), interval=1000)
-    animation.FuncAnimation(fig, plotter.animate, fargs=(time_axis, plot_data.y,
-                                position_plots[1]), interval=1000)
-    animation.FuncAnimation(fig, plotter.animate, fargs=(time_axis, plot_data.z,
-                                position_plots[2]), interval=1000)
-    plt.show()
-
 
     rate = rospy.Rate(10.0)
     prev_time = time.time()
@@ -194,13 +180,12 @@ def main():
             br.sendTransform(trans, zero_rot, rospy.Time.now(),
                             "camera", "world")
 
-        plot_data.x['filter'].append(X[0])
-        plot_data.y['filter'].append(X[1])
-        plot_data.z['filter'].append(X[2])
+        plot_data.add_data('filter', X)
 
         prev_time = time.time()
 
         rate.sleep()
+
 
 if __name__ == '__main__':
     main()
