@@ -3,6 +3,11 @@ import math
 from numpy import *
 from numpy.linalg import inv
 import time
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+import plot_pose_live as plotter
+
 
 import roslib
 import rospy
@@ -31,6 +36,7 @@ tag6 = TagDetection("tag_6", .2159, .0635, 0)
 tag_list = [('tag_0', tag0), ('tag_1', tag1), ('tag_6', tag6), ('tag_7', tag7)]
 
 
+# Returns global translation of camera as vector3 x, y, z
 def pose_from_meas(trans, rot, tag):
     trans_mat = tf.transformations.translation_matrix(trans)
     rot_mat = tf.transformations.quaternion_matrix(rot)
@@ -61,21 +67,32 @@ def generate_A(dt):
     #            [0, 0, 0, 0, 0, 1],
 
 
-def init_state(listener):
-    while(True):
+def init_state(listener, X, plot_data, time_axis):
+    # List of tags to be found
+    tags_left = [tag_name for (tag_name, tag) in tag_list]
+
+    # Loop until we've detected each tag at least once to have correct # values
+    while(len(tags_left) > 0):
         print('Searching for tag...')
         time.sleep(1)
         for (tag_name, tag) in tag_list:
-            try:
-                (trans,rot) = listener.lookupTransform(cam_frame_id,
-                            tag_name, rospy.Time(0))
-                X = pose_from_meas(trans, rot, tag)
-                X = append(X, [[0], [0], [0]])
-                # return first estimate we find for initial estimate
-                return X.reshape((STATE_DIM, 1))
-            except (tf.LookupException, tf.ConnectivityException,
-                    tf.ExtrapolationException):
-                continue
+            if (tag_name not in tags_left):
+                try:
+                    (trans,rot) = listener.lookupTransform(cam_frame_id,
+                                tag_name, rospy.Time(0))
+                    X = pose_from_meas(trans, rot, tag)
+
+                    tags_left.remove(tag_name)
+                    plot_data.x[tag_name].append(X[0])
+                    plot_data.y[tag_name].append(X[1])
+                    plot_data.z[tag_name].append(X[2])
+
+                except (tf.LookupException, tf.ConnectivityException,
+                        tf.ExtrapolationException):
+                    continue
+    time_axis.append(time.time())
+    # Just return last tag that was stored
+    return append(X, [[0], [0], [0]]).reshape((STATE_DIM, 1))
 
 
 def generate_H():
@@ -86,11 +103,9 @@ def generate_H():
     return H
 
 
-def estimate_state(listener, X, P, V, W, dt):
+def estimate_state(listener, X, P, V, W, dt, plot_data, time_axis):
     A = generate_A(dt)
     H = generate_H()
-
-    assert(A.shape == P.shape)
 
     X, P = predict(X, P, A, V)
     for (tag_name, tag) in tag_list:
@@ -99,10 +114,15 @@ def estimate_state(listener, X, P, V, W, dt):
                             tag_name, rospy.Time(0))
             Z = pose_from_meas(trans, rot, tag)
             X, P = update(X, P, Z, H, W)
+            plot_data.add_data
 
         except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
+            plot_data.x[tag_name].append(X[-1])
+            plot_data.y[tag_name].append(X[-1])
+            plot_data.z[tag_name].append(X[-1])
             continue
+    time_axis.append(time.time())
     return X, P
 
 
@@ -113,7 +133,6 @@ def update(X, P, Z, H, W):
 
     X = X + K.dot(innov)
     P = P - K.dot(H.dot(P))
-    # print(K)
     return X, P
 
 
@@ -146,6 +165,19 @@ def main():
     # Assume nothing about covariance matrix
     V, W = identity(STATE_DIM), identity(MEAS_DIM)
 
+    # Plotting position to compare accuracy of filter to individual
+    # measurements of tags
+    time_axis = []
+    fig, position_plots, velocity_plots = plotter.init_plots()
+    plot_data = plotter.init_plot_data()
+    animation.FuncAnimation(fig, plotter.animate, fargs=(time_axis, plot_data.x,
+                                position_plots[0]), interval=1000)
+    animation.FuncAnimation(fig, plotter.animate, fargs=(time_axis, plot_data.y,
+                                position_plots[1]), interval=1000)
+    animation.FuncAnimation(fig, plotter.animate, fargs=(time_axis, plot_data.z,
+                                position_plots[2]), interval=1000)
+    plt.show()
+
 
     rate = rospy.Rate(10.0)
     prev_time = time.time()
@@ -153,14 +185,18 @@ def main():
     init = True
     while not rospy.is_shutdown():
         if init:
-            X = init_state(listener)
-            print("Init: ", X)
-            print(X.shape)
+            X = init_state(listener, X, plot_data, time_axis)
             init = False
         else:
-            X, P = estimate_state(listener, X, P, V, W, time.time() - prev_time)
+            X, P = estimate_state(listener, X, P, V, W,
+                                time.time() - prev_time, plot_data, time_axis)
             trans= get_transform(X)
-            br.sendTransform(trans, zero_rot, rospy.Time.now(), "camera", "world")
+            br.sendTransform(trans, zero_rot, rospy.Time.now(),
+                            "camera", "world")
+
+        plot_data.x['filter'].append(X[0])
+        plot_data.y['filter'].append(X[1])
+        plot_data.z['filter'].append(X[2])
 
         prev_time = time.time()
 
