@@ -10,7 +10,7 @@ import tf
 import geometry_msgs.msg
 
 STATE_DIM = 6  # Dimension of state vector, [x, y, z, vx, vy, vz]
-MEAS_DIM = 6
+MEAS_DIM = 3
 
 class TagDetection():
     def __init__(self, name, x, y, z):
@@ -40,11 +40,11 @@ def pose_from_meas(trans, rot, tag):
                         [tag.x, tag.y, tag.z])
 
     global_cam_pose = trans_global_tag.dot(mat)
-    init_cam_pos = [global_cam_pose[0][3], global_cam_pose[1][3],
-                    global_cam_pose[2][3]]
+    init_cam_pos = array([[global_cam_pose[0][3]],
+                            [global_cam_pose[1][3]],
+                            [global_cam_pose[2][3]]])
 
-    X = append(init_cam_pos, [0, 0, 0])  # [x, y, z, vx, vy, vz]
-    return X
+    return init_cam_pos
 
 
 def generate_A(dt):
@@ -53,16 +53,15 @@ def generate_A(dt):
     A[1][4] = dt
     A[2][5] = dt
     return A
-    # A = array([[1, 0, 0, dt, 0, 0, 0]
-    #            [0, 1, 0, 0, dt, 0, 0],
-    #            [0, 0, 1, 0, 0, dt, 0],
-    #            [0, 0, 0, 1, 0, 0,  0],
-    #            [0, 0, 0, 0, 1, 0,  0],
-    #            [0, 0, 0, 0, 0, 1,  0],
-    #            [0, 0, 0, 0, 0, 0,  1]])
+    # A = array([[1, 0, 0, dt, 0, 0]
+    #            [0, 1, 0, 0, dt, 0],
+    #            [0, 0, 1, 0, 0, dt],
+    #            [0, 0, 0, 1, 0, 0],
+    #            [0, 0, 0, 0, 1, 0],
+    #            [0, 0, 0, 0, 0, 1],
 
 
-def init_state(listener, X):
+def init_state(listener):
     while(True):
         print('Searching for tag...')
         time.sleep(1)
@@ -71,19 +70,19 @@ def init_state(listener, X):
                 (trans,rot) = listener.lookupTransform(cam_frame_id,
                             tag_name, rospy.Time(0))
                 X = pose_from_meas(trans, rot, tag)
-                return X  # return first estimate we find for initial estimate
+                X = append(X, [[0], [0], [0]])
+                # return first estimate we find for initial estimate
+                return X.reshape((STATE_DIM, 1))
             except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
                 continue
-        time.sleep(1)
 
 
 def generate_H():
     # Preserve position, but measurement should not have any velocity est
-    H = identity(STATE_DIM)
-    H[3][3] = 0
-    H[4][4] = 0
-    H[5][5] = 0
+    H = array([[1, 0, 0, 0, 0, 0],
+               [0, 1, 0, 0, 0, 0],
+               [0, 0, 1, 0, 0, 0]])
     return H
 
 
@@ -139,8 +138,8 @@ def main():
 
     # State and Covariance
     P = identity(STATE_DIM)
-    # [x, y, z, vx, vy, vz, xr, yr, zr, w, 1]
-    X = array([0 for i in range(STATE_DIM)])
+    # [x, y, z, vx, vy, vz, xr, yr, zr, w]
+    X = array([[0] for i in range(STATE_DIM)])
     zero_rot = [0, 0, 0, 1]
 
     # Error Covariances
@@ -154,7 +153,9 @@ def main():
     init = True
     while not rospy.is_shutdown():
         if init:
-            X = init_state(listener, X)
+            X = init_state(listener)
+            print("Init: ", X)
+            print(X.shape)
             init = False
         else:
             X, P = estimate_state(listener, X, P, V, W, time.time() - prev_time)
