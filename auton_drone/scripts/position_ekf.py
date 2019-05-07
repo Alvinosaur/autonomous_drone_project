@@ -65,16 +65,15 @@ def generate_A(dt):
     #            [0, 0, 0, 0, 0, 1],
 
 
-def init_state(listener, X, plot_data, time_axis):
+def init_state(listener, X, plot_data):
     # List of tags to be found
     tags_left = [tag_name for (tag_name, tag) in tag_list]
 
     # Loop until we've detected each tag at least once to have correct # values
     while(len(tags_left) > 0):
-        print('Searching for tag...')
-        time.sleep(1)
+        print('Searching for tag...', tags_left)
         for (tag_name, tag) in tag_list:
-            if (tag_name not in tags_left):
+            if (tag_name in tags_left):
                 try:
                     (trans,rot) = listener.lookupTransform(cam_frame_id,
                                 tag_name, rospy.Time(0))
@@ -86,7 +85,8 @@ def init_state(listener, X, plot_data, time_axis):
                 except (tf.LookupException, tf.ConnectivityException,
                         tf.ExtrapolationException):
                     continue
-    time_axis.append(time.time())
+
+        time.sleep(1)
     # Just return last tag that was stored
     return append(X, [[0], [0], [0]]).reshape((STATE_DIM, 1))
 
@@ -99,7 +99,7 @@ def generate_H():
     return H
 
 
-def estimate_state(listener, X, P, V, W, dt, plot_data, time_axis):
+def estimate_state(listener, X, P, V, W, dt, plot_data):
     A = generate_A(dt)
     H = generate_H()
 
@@ -110,13 +110,13 @@ def estimate_state(listener, X, P, V, W, dt, plot_data, time_axis):
                             tag_name, rospy.Time(0))
             Z = pose_from_meas(trans, rot, tag)
             X, P = update(X, P, Z, H, W)
-            plot_data.add_data
+            plot_data.add_data(tag_name, Z)
 
         except (tf.LookupException, tf.ConnectivityException,
                     tf.ExtrapolationException):
-            plot_data.add_data(tag_name, X)
+            plot_data.add_data(tag_name, None)
             continue
-    time_axis.append(time.time())
+
     return X, P
 
 
@@ -158,31 +158,50 @@ def main():
     # Error Covariances
     # Assume nothing about covariance matrix
     V, W = identity(STATE_DIM), identity(MEAS_DIM)
+    W[0][0] = 1000
+    W[1][1] = 1000
+    W[2][2] = 1000
 
     # Plotting position to compare accuracy of filter to individual
     # measurements of tags
     time_axis = []
     fig, position_plots, velocity_plots = plotter.init_plots()
+    x_plot, y_plot, z_plot = position_plots
     plot_data = plotter.init_plot_data()
+    plt.axis([0, 1000, -10, 10])
 
     rate = rospy.Rate(10.0)
     prev_time = time.time()
 
     init = True
+    i = 0
     while not rospy.is_shutdown():
+        cur_time = time.time()
         if init:
-            X = init_state(listener, X, plot_data, time_axis)
+            X = init_state(listener, X, plot_data)
             init = False
         else:
             X, P = estimate_state(listener, X, P, V, W,
-                                time.time() - prev_time, plot_data, time_axis)
+                                cur_time - prev_time, plot_data)
             trans= get_transform(X)
             br.sendTransform(trans, zero_rot, rospy.Time.now(),
                             "camera", "world")
 
+        time_axis.append(cur_time)
         plot_data.add_data('filter', X)
+        # plotter.plot_new_points(position_plots, plot_data, i)
+        x_plot.scatter(i, float(plot_data.x['filter'][-1][0]), c = 'r')
+        y_plot.scatter(i, float(plot_data.y['filter'][-1][0]), c = 'r')
+        z_plot.scatter(i, float(plot_data.z['filter'][-1][0]), c = 'r')
 
-        prev_time = time.time()
+        x_plot.scatter(i, float(plot_data.x['tag_0'][-1][0]), c = 'g')
+        y_plot.scatter(i, float(plot_data.y['tag_0'][-1][0]), c = 'g')
+        z_plot.scatter(i, float(plot_data.z['tag_0'][-1][0]), c = 'g')
+
+        plt.pause(0.05)
+        i += 1
+
+        prev_time = cur_time
 
         rate.sleep()
 
