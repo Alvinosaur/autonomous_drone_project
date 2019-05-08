@@ -158,9 +158,9 @@ def main():
     # Error Covariances
     # Assume nothing about covariance matrix
     V, W = identity(STATE_DIM), identity(MEAS_DIM)
-    W[0][0] = 1000
-    W[1][1] = 1000
-    W[2][2] = 1000
+    W[0][0] = 100
+    W[1][1] = 100
+    W[2][2] = 100
 
     # Plotting position to compare accuracy of filter to individual
     # measurements of tags
@@ -168,7 +168,6 @@ def main():
     fig, position_plots, velocity_plots = plotter.init_plots()
     x_plot, y_plot, z_plot = position_plots
     plot_data = plotter.init_plot_data()
-    plt.axis([0, 1000, -10, 10])
 
     rate = rospy.Rate(10.0)
     prev_time = time.time()
@@ -194,9 +193,9 @@ def main():
         y_plot.scatter(i, float(plot_data.y['filter'][-1][0]), c = 'r')
         z_plot.scatter(i, float(plot_data.z['filter'][-1][0]), c = 'r')
 
-        x_plot.scatter(i, float(plot_data.x['tag_0'][-1][0]), c = 'g')
-        y_plot.scatter(i, float(plot_data.y['tag_0'][-1][0]), c = 'g')
-        z_plot.scatter(i, float(plot_data.z['tag_0'][-1][0]), c = 'g')
+        x_plot.scatter(i, float(plot_data.x['tag_7'][-1][0]), c = 'g')
+        y_plot.scatter(i, float(plot_data.y['tag_7'][-1][0]), c = 'g')
+        z_plot.scatter(i, float(plot_data.z['tag_7'][-1][0]), c = 'g')
 
         plt.pause(0.05)
         i += 1

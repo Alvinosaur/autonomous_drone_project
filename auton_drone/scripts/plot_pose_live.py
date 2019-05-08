@@ -23,6 +23,16 @@ def init_plots():
   y_pos = fig.add_subplot(1, 3, 2)
   z_pos = fig.add_subplot(1, 3, 3)
 
+  x_pos.set_ylim(-0.3, 0.4)
+  y_pos.set_ylim(-0.3, 0.4)
+  z_pos.set_ylim(0.1, 0.6)
+
+
+  y_pos.set_xlabel('Time (0.1s)')
+  x_pos.set_ylabel('Position (m)')
+
+  fig.suptitle('Measured and Filtered Position v.s Time')
+
   position_plots = [x_pos, y_pos, z_pos]
   # velocity_plots = [vx, vy, vz]
   velocity_plots = []
