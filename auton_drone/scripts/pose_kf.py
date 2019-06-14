@@ -87,7 +87,7 @@ def init_state(listener, X):
 
 
 
-def estimate_state(listener, X, P, V, W, dt):
+def estimate_state(br, listener, X, P, V, W, dt):
     A = generate_A(dt)
     assert(A.shape == P.shape)
 
@@ -98,6 +98,11 @@ def estimate_state(listener, X, P, V, W, dt):
                             tag_name, rospy.Time(0))
             Z = format_measurement(trans, rot)
             H = generate_H(tag)
+            zero_rot = [0, 0, 0, 1]
+            tag_pos = H.dot(X)
+            formatted_tag_pos = [tag_pos[0], tag_pos[1], tag_pos[2]]
+            br.sendTransform(formatted_tag_pos, zero_rot, rospy.Time.now(),
+                            tag_name, "world")
             X, P = update(X, P, Z, H, W)
 
         except (tf.LookupException, tf.ConnectivityException,
@@ -155,10 +160,11 @@ def main():
             # print('initX: ', X)
             init = False
         else:
-            X, P = estimate_state(listener, X, P, V, W, time.time() - prev_time)
+            X, P = estimate_state(br, listener, X, P, V, W, time.time() - prev_time)
             # print('New: ', X)
             trans, rot = get_transform(X)
-            br.sendTransform(trans, rot, rospy.Time.now(), "camera", "world")
+            zero_rot = [0, 0, 0, 1]
+            br.sendTransform(trans, zero_rot, rospy.Time.now(), "camera", "world")
 
         prev_time = time.time()
 

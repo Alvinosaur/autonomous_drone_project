@@ -3,22 +3,20 @@
 using namespace Eigen;
 
 class PoseCovOutput {
-
-
-public:
-  MatrixXf X;
-  Matrix4d P;
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  public:
+    Vector3d X;
+    Matrix3d P;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 void predict(PoseCovOutput *prev_state,
-             Matrix4d &process_cov, PoseCovOutput *result);
+             Matrix3d &process_cov, PoseCovOutput *result);
 void update(PoseCovOutput *pred, std::vector<TagDetection> &detections,
             PoseCovOutput *result);
 void calc_state_meas_trans(std::vector<TagDetection> &detections,
                           Affine3d &c);
-Matrix4d process_cov;
-Matrix4d meas_noise_cov;
+Matrix3d process_cov;
+Matrix3d meas_noise_cov;
 
 
 PoseCovOutput* estimate_pose(std::vector<TagDetection> &detections,
@@ -37,22 +35,23 @@ void predict(PoseCovOutput *prev_state,
   pred->X = prev_state->X;
 
   // P_k = P_k-1 + Q
-  process_cov = Matrix4d::Identity();
+  process_cov = Matrix3d::Identity();
   pred->P = prev_state->P + process_cov;
 }
 
 void update(PoseCovOutput *pred, std::vector<TagDetection> &detections,
             PoseCovOutput *result) {
   Affine3d c;
-  Affine3d Z;
+  Vector3d Z;
   MatrixXf S;
   MatrixXf K;
-  tf::transformTFToEigen(detections[0].transform, Z);
+  // Measurement is 3D with x, y, z pose
+  tf::vectorTFToEigen(detections[0].transform.getOrigin(), Z);
 
   calc_state_meas_trans(detections, c);
-  meas_noise_cov = Matrix4d::Identity();
-  S = (c * pred->P * c.matrix().transpose() + meas_noise_cov);
-  K = pred->P * c * S.inverse();
+  meas_noise_cov = Matrix3d::Identity();
+  // S = (c * pred->P * c.matrix().transpose() + meas_noise_cov);
+  // K = pred->P * c * S.inverse();
   // result->X = pred->X + K * (Z.matrix() - pred->X * c.matrix());
   // result->P = (1 - K * c) * pred->P;
 }

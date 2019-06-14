@@ -179,7 +179,7 @@ target_link_libraries(vizsensors ${catkin_LIBRARIES})
 add_dependencies(vizsensors auton_drone_generate_messages_cpp)
 
 add_executable(plot_drone src/plot_drone.cpp src/TagDetection.cpp
-  src/PoseEstimation.cpp include/${PROJECT_NAME}/PoseEstimation.h
+  # src/PoseEstimation.cpp include/${PROJECT_NAME}/PoseEstimation.h
   include/${PROJECT_NAME}/TagDetection.h)
 target_link_libraries(plot_drone ${catkin_LIBRARIES})
 add_dependencies(plot_drone auton_drone_generate_messages_cpp)
